@@ -56,7 +56,8 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	// Region of interest
 	//----------------------------------------------------------
 	double trange = 0.;
-	short int last_region = -1;
+	short int first_region = -1;
+	short int last_region  = -1;
 	std::vector<bool> region(17);
 	//--------------------------------------
 	// Bits extraction
@@ -66,6 +67,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 		region[i] = (region_mask >> i) & 1;
 		if ( region[i] )
 		{
+			if ( first_region == -1 ) first_region = i;
 			last_region = i;
 			if      ( i     ==  0 ) trange += 132.305; // Pre-bunch
 			else if ( i     == 16 ) trange += 292.895; // After-bunch
@@ -74,10 +76,16 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 		}
 	}
 	if ( last_region == -1 ) return;
-	double roiend = 0.;
-	if      ( last_region     == 16 ) roiend = 4000.;
-	else if ( last_region % 2 ==  0 ) roiend = 232.305        + 238.2* last_region   ;
-	else                              roiend = 232.305 + 140. + 238.2*(last_region-1);
+
+	double roibegin = 0.;
+	if      ( first_region     ==  0 ) roibegin = 100.;
+	else if ( first_region % 2 ==  0 ) roibegin = 232.305 - 336.4 + 238.2* first_region   ;
+	else                               roibegin = 232.305         + 238.2*(first_region-1);
+
+	double roiend   = 0.;
+	if      ( last_region      == 16 ) roiend   = 4000.;
+	else if ( last_region  % 2 ==  0 ) roiend   = 232.305         + 238.2* last_region    ;
+	else                               roiend   = 232.305 + 140.  + 238.2*(last_region -1);
 
 
 
@@ -106,8 +114,8 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	//----------------------------------------------------------
 	if ( isbeamon )
 	{
-//		for ( unsigned short int i = 22; i <= 56; i++ )
-		for ( unsigned short int i = 22; i <= 22; i++ )
+		for ( unsigned short int i = 22; i <= 56; i++ )
+//		for ( unsigned short int i = 22; i <= 22; i++ )
 		{
 			if ( i == 34 ) continue;
 			sTemp . Form("/data3/submet_exp/e00000/tree/2.1.0_bsdspe_info/r%05hu_spill.root", i);
@@ -233,10 +241,14 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	unsigned long int B = 0;
 	unsigned long int C = 0;
 	unsigned long int D = 0;
-	TH1D* h1dt = new TH1D("h1dt", "dt Distribution", 256, -4095., 4095.);
-	TH1D* h1t0 = new TH1D("h1t0", "t0 Distribution", 256,     0., 4095.);
-	TH1D* h1t1 = new TH1D("h1t1", "t1 Distribution", 256,     0., 4095.);
-	TH2D* h2t    = new TH2D("h2t"   , "t1 vs t0"  , 256, 0. , 4095. , 256, 0. , 4095. );
+//	TH1D* h1dt = new TH1D("h1dt", "dt Distribution", 256, -4095., 4095.);
+//	TH1D* h1t0 = new TH1D("h1t0", "t0 Distribution", 256,     0., 4095.);
+//	TH1D* h1t1 = new TH1D("h1t1", "t1 Distribution", 256,     0., 4095.);
+	TH1D* h1dt = new TH1D("h1dt", "dt Distribution", 200, roibegin - roiend - 100., roiend - roibegin + 100.);
+	TH1D* h1t0 = new TH1D("h1t0", "t0 Distribution", 200, roibegin          - 100., roiend            + 100.);
+	TH1D* h1t1 = new TH1D("h1t1", "t1 Distribution", 200, roibegin          - 100., roiend            + 100.);
+//	TH2D* h2t    = new TH2D("h2t"   , "t1 vs t0"  , 256, 0. , 4095. , 256, 0. , 4095. );
+	TH2D* h2t    = new TH2D("h2t", "t1 vs t0", 200, roibegin - 100., roiend + 100., 200, roibegin - 100., roiend + 100.);
 	TH2D* h2abcd = new TH2D("h2abcd", "ABCD Plane",   2, -.5,     .5,   2, -.5,     .5);
 	TH2D* h2map  = new TH2D("h2map" , "Coin Found",  10, -.5,    9.5,   8, -.5,    7.5);
 
@@ -259,8 +271,9 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 		//--------------------------------------
 		// Too noisy pedestal
 		//--------------------------------------
-//		if ( *std::max_element(event_volt_rms_abe -> begin(), event_volt_rms_abe -> end()) > 2. ) continue;
-		if ( *std::max_element(event_volt_rms_abe -> begin(), event_volt_rms_abe -> end()) > 1.3 ) continue;
+		if ( *std::max_element(event_volt_rms_abe -> begin(), event_volt_rms_abe -> end()) >= 2.  ) continue;
+//		if ( *std::max_element(event_volt_rms_abe -> begin(), event_volt_rms_abe -> end()) >  1.3 ) continue;
+
 
 		//--------------------------------------
 		// Large hit in the time window or before?
@@ -293,6 +306,15 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 			//--------------------------------------
 			// SPE pulse selection
 			//--------------------------------------
+			// Height / width < 30
+			if ( pulse_volt_height -> at(j) / pulse_time_fwhm -> at(j) >= 30. ) continue;
+
+			// n > 3
+			if ( pulse_time_n -> at(j) <= 3. ) continue;
+
+			// Kurtosis > -1
+			if ( pulse_time_kurt -> at(j) <= - 1. ) continue;
+
 			// SPE area +/- 2 sigma
 			if ( pulse_area -> at(j) * ADCToV * SampleToNs < pulse_spe_area -> at(j) - 2. * pulse_spe_width -> at(j) ) continue;
 			if ( pulse_area -> at(j) * ADCToV * SampleToNs > pulse_spe_area -> at(j) + 2. * pulse_spe_width -> at(j) ) continue;
