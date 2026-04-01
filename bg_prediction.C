@@ -246,20 +246,41 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	// │ A │ D │ y: dT(max,min) for us it will be just dT
 	// └───┴───┘ 
 	//------------------------------------------------------------------------------
-	unsigned long int A = 0;
-	unsigned long int B = 0;
-	unsigned long int C = 0;
-	unsigned long int D = 0;
+	unsigned long int A[81] = {0};
+	unsigned long int B[81] = {0};
+	unsigned long int C[81] = {0};
+	unsigned long int D[81] = {0};
+	TH1D* h1dt[81] = {0};
+	TH1D* h1t0[81] = {0};
+	TH1D* h1t1[81] = {0};
+	TH2D* h2t[81] = {0};
+	TH2D* h2abcd[81] = {0};
+	TH2D* h2map[81] = {0};
+
 //	TH1D* h1dt = new TH1D("h1dt", "dt Distribution", 256, -4095., 4095.);
 //	TH1D* h1t0 = new TH1D("h1t0", "t0 Distribution", 256,     0., 4095.);
 //	TH1D* h1t1 = new TH1D("h1t1", "t1 Distribution", 256,     0., 4095.);
-	TH1D* h1dt = new TH1D("h1dt", "dt Distribution", 200, roibegin - roiend - 100., roiend - roibegin + 100.);
-	TH1D* h1t0 = new TH1D("h1t0", "t0 Distribution", 200, roibegin          - 100., roiend            + 100.);
-	TH1D* h1t1 = new TH1D("h1t1", "t1 Distribution", 200, roibegin          - 100., roiend            + 100.);
+	h1dt[0] = new TH1D("h1dt", "dt Distribution", 200, roibegin - roiend - 100., roiend - roibegin + 100.);
+	h1t0[0] = new TH1D("h1t0", "t0 Distribution", 200, roibegin          - 100., roiend            + 100.);
+	h1t1[0] = new TH1D("h1t1", "t1 Distribution", 200, roibegin          - 100., roiend            + 100.);
 //	TH2D* h2t    = new TH2D("h2t"   , "t1 vs t0"  , 256, 0. , 4095. , 256, 0. , 4095. );
-	TH2D* h2t    = new TH2D("h2t", "t1 vs t0", 200, roibegin - 100., roiend + 100., 200, roibegin - 100., roiend + 100.);
-	TH2D* h2abcd = new TH2D("h2abcd", "ABCD Plane",   2, -.5,     .5,   2, -.5,     .5);
-	TH2D* h2map  = new TH2D("h2map" , "Coin Found",  10, -.5,    9.5,   8, -.5,    7.5);
+	h2t[0]    = new TH2D("h2t"   , "t1 vs t0"  , 200, roibegin - 100., roiend + 100., 200, roibegin - 100., roiend + 100.);
+	h2abcd[0] = new TH2D("h2abcd", "ABCD Plane",  2, -.5,  .5, 2, -.5,  .5);
+	h2map[0]  = new TH2D("h2map" , "Coin Found", 10, -.5, 9.5, 8, -.5, 7.5);
+
+	TH2D* h2predmap = new TH2D("h2predmap", "BG Prediction", 10, -.5, 9.5, 8, -.5, 7.5);
+
+	// For individual pairs
+	for ( unsigned short int i = 1; i <= 80; i++ )
+	{
+		h1dt[i] = new TH1D(Form("h1dt_%d", i), Form("dt Distribution, %d", i), 200, roibegin - roiend - 100., roiend - roibegin + 100.);
+		h1t0[i] = new TH1D(Form("h1t0_%d", i), Form("t0 Distribution, %d", i), 200, roibegin          - 100., roiend            + 100.);
+		h1t1[i] = new TH1D(Form("h1t1_%d", i), Form("t1 Distribution, %d", i), 200, roibegin          - 100., roiend            + 100.);
+
+		h2t[i]    = new TH2D(Form("h2t_%d"   , i), Form("t1 vs t0, %d"  , i), 200, roibegin - 100., roiend + 100., 200, roibegin - 100., roiend + 100.);
+		h2abcd[i] = new TH2D(Form("h2abcd_%d", i), Form("ABCD Plane, %d", i),  2, -.5,  .5, 2, -.5,  .5);
+		h2map[i]  = new TH2D(Form("h2map_%d" , i), Form("Coin Found, %d", i), 10, -.5, 9.5, 8, -.5, 7.5);
+	}
 
 
 
@@ -344,12 +365,12 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 			if ( pulse_il -> at(j) == 0 )
 			{
 				ll0 . push_back(j);
-				h1t0 -> Fill(pulse_time_is -> at(j));
+				h1t0[0] -> Fill(pulse_time_is -> at(j));
 			}
 			else
 			{
 				ll1 . push_back(j);
-				h1t1 -> Fill(pulse_time_is -> at(j));
+				h1t1[0] -> Fill(pulse_time_is -> at(j));
 			}
 
 			//--------------------------------------
@@ -392,8 +413,8 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 				//--------------------------------------
 				// Fill hists
 				//--------------------------------------
-				h1dt -> Fill(dt);
-				h2t -> Fill(pulse_time_is -> at(ll0[j]), pulse_time_is -> at(ll1[k]));
+				h1dt[0] -> Fill(dt);
+				h2t[0] -> Fill(pulse_time_is -> at(ll0[j]), pulse_time_is -> at(ll1[k]));
 
 				//--------------------------------------
 				// Aligned?
@@ -408,13 +429,13 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 					{
 						if ( !isbeamon )
 						{
-							A++;
-							h2map -> Fill(pulse_ix -> at(ll0[j]), pulse_iy -> at(ll0[j]));
+							A[0]++;
+							h2map[0] -> Fill(pulse_ix -> at(ll0[j]), pulse_iy -> at(ll0[j]));
 						}
 					}
 					else
 					{
-						B++;
+						B[0]++;
 					}
 				}
 				else
@@ -424,11 +445,11 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 					//--------------------------------------
 					if ( TMath::Abs(dt) < dtmax )
 					{
-						D++;
+						D[0]++;
 					}
 					else
 					{
-						C++;
+						C[0]++;
 					}
 				}
 			}
@@ -440,17 +461,17 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	//------------------------------------------------------------------------------
 	// Fill ABCD hist
 	//------------------------------------------------------------------------------
-	h2abcd -> SetBinContent(1, 1, A);
-	h2abcd -> SetBinContent(1, 2, B);
-	h2abcd -> SetBinContent(2, 1, D);
-	h2abcd -> SetBinContent(2, 2, C);
+	h2abcd[0] -> SetBinContent(1, 1, A[0]);
+	h2abcd[0] -> SetBinContent(1, 2, B[0]);
+	h2abcd[0] -> SetBinContent(2, 1, D[0]);
+	h2abcd[0] -> SetBinContent(2, 2, C[0]);
 
 
 	//------------------------------------------------------------------------------
 	// Prediction result
 	//------------------------------------------------------------------------------
-	p = 1. * B * D / C;
-	dp = TMath::Sqrt(p * (p+D+B) / C);
+	p = 1. * B[0] * D[0] / C[0];
+	dp = TMath::Sqrt(p * (p+D[0]+B[0]) / C[0]);
 
 
 
@@ -463,7 +484,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	std::cout << "dtmax              = " << dtmax << " samples" << std::endl;
 	std::cout << "ABCD prediction    = " << p << " +/- " << dp  << std::endl;
 	std::cout << "Expected nBG per evt per sample = " << p / nEntriesClean / trange / SampleToNs << " +/- " << dp / nEntriesClean / trange / SampleToNs << std::endl;
-	if ( !isbeamon ) std::cout << "Yields in region A = " << A << std::endl;
+	if ( !isbeamon ) std::cout << "Yields in region A = " << A[0] << std::endl;
 
 
 
@@ -473,17 +494,17 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	TCanvas* c1 = new TCanvas("c1", "Prediction", 1500, 1000);
 	c1 -> Divide(3, 2);
 	c1 -> cd(1) -> SetLogz();
-	h2t -> Draw("colz");
+	h2t[0] -> Draw("colz");
 	c1 -> cd(2);
-	h1dt -> Draw();
+	h1dt[0] -> Draw();
 	c1 -> cd(3) -> SetLogz();
-	h2abcd -> Draw("coltext");
+	h2abcd[0] -> Draw("coltext");
 	c1 -> cd(4);
-	h1t0 -> Draw();
+	h1t0[0] -> Draw();
 	c1 -> cd(5);
-	h1t1 -> Draw();
+	h1t1[0] -> Draw();
 	c1 -> cd(6);
-	if ( !isbeamon ) h2map -> Draw("colztext");
+	if ( !isbeamon ) h2map[0] -> Draw("colztext");
 
 
 
