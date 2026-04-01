@@ -39,7 +39,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	unsigned long int nEntries      = 0;
 	unsigned long int nEntriesClean = 0;
 	gInterpreter -> GenerateDictionary("vector<vector<unsigned short>>", "vector");
-	const unsigned short int dtmax = 14;
+	const unsigned short int dtmax = 25;
 	double dt = 0.;
 	double p  = 0.;
 	double dp = 0.;
@@ -50,6 +50,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	std::vector<unsigned short int> event_npulses_sel(160, 0);
 	unsigned short int event_npulses_sel_total = 0;
 	double hmax = 0.;
+	double npot = 0.;
 
 
 	//----------------------------------------------------------
@@ -222,8 +223,16 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	tree -> SetBranchAddress("pulse_vec_volt"      , &pulse_vec_volt      );
 
 	// Additional
+	int bsd_spillN   = 0;
+	int bsd_trg_sec  = 0;
+	int bsd_trg_nano = 0;
+	double bsd_ct_pot[8] = {0};
 	std::vector<double>* pulse_spe_area  = 0;
 	std::vector<double>* pulse_spe_width = 0;
+	tree -> SetBranchAddress("bsd_spillN"     , &bsd_spillN     );
+	tree -> SetBranchAddress("bsd_trg_sec"    , &bsd_trg_sec    );
+	tree -> SetBranchAddress("bsd_trg_nano"   , &bsd_trg_nano   );
+	tree -> SetBranchAddress("bsd_ct_pot"     , &bsd_ct_pot     );
 	tree -> SetBranchAddress("pulse_spe_area" , &pulse_spe_area );
 	tree -> SetBranchAddress("pulse_spe_width", &pulse_spe_width);
 
@@ -268,6 +277,12 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 		//----------------------------------------------------------
 		// Event cleaning
 		//----------------------------------------------------------
+		//--------------------------------------
+		// Was beam on?
+		//--------------------------------------
+		if ( bsd_ct_pot[0] < 1.e12 ) continue;
+		
+		
 		//--------------------------------------
 		// Too noisy pedestal
 		//--------------------------------------
@@ -359,6 +374,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 		// Count clean events; how many events survived?
 		//----------------------------------------------------------
 		nEntriesClean++;
+		npot += bsd_ct_pot[0];
 
 
 		//----------------------------------------------------------
@@ -443,6 +459,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	//------------------------------------------------------------------------------
 	std::cout << "[Info]"                                       << std::endl;
 	std::cout << "Clean entries      = " << nEntriesClean << " (" << 100. * nEntriesClean / nEntries << "%)" << std::endl;
+	std::cout << "Accumulated NPOT   = " << npot                << std::endl;
 	std::cout << "dtmax              = " << dtmax << " samples" << std::endl;
 	std::cout << "ABCD prediction    = " << p << " +/- " << dp  << std::endl;
 	std::cout << "Expected nBG per evt per sample = " << p / nEntriesClean / trange / SampleToNs << " +/- " << dp / nEntriesClean / trange / SampleToNs << std::endl;
