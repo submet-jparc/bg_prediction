@@ -28,6 +28,8 @@
 #include "TCanvas.h"
 #include "TMath.h"
 
+#include "SUBMETMap.hh"
+
 
 
 void bg_prediction(const bool isbeamon = false, const unsigned int region_mask = 131071)
@@ -41,8 +43,8 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	gInterpreter -> GenerateDictionary("vector<vector<unsigned short>>", "vector");
 	const unsigned short int dtmax = 25;
 	double dt = 0.;
-	double p  = 0.;
-	double dp = 0.;
+	double p[81]  = {0.};
+	double dp[81] = {0.};
 	const double bunch0from = 238.;
 	const double bunch0to   = 380.;
 	const double bunch1from = 716.;
@@ -116,7 +118,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	if ( isbeamon )
 	{
 		for ( unsigned short int i = 22; i <= 56; i++ )
-//		for ( unsigned short int i = 22; i <= 22; i++ )
+//		for ( unsigned short int i = 22; i <= 30; i++ )
 		{
 			if ( i == 34 ) continue;
 			sTemp . Form("/data3/submet_exp/e00000/tree/2.1.0_bsdspe_info/r%05hu_spill.root", i);
@@ -436,6 +438,7 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 					else
 					{
 						B[0]++;
+						B[pulse_imod -> at(ll0[j]) / 2 + 1]++;
 					}
 				}
 				else
@@ -470,9 +473,16 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	//------------------------------------------------------------------------------
 	// Prediction result
 	//------------------------------------------------------------------------------
-	p = 1. * B[0] * D[0] / C[0];
-	dp = TMath::Sqrt(p * (p+D[0]+B[0]) / C[0]);
+	if ( C[0] )
+	{
+		for ( unsigned short int i = 0; i < 81; i++ )
+		{
+			p[i]  = 1. * B[i] * D[0] / C[0];
+			dp[i] = TMath::Sqrt(p[i] * (p[i] + D[0] + B[i]) / C[0]);
 
+			if ( i > 0 ) h2predmap -> Fill(SUBMETMap::GetiXfromi(2*(i-1)), SUBMETMap::GetiYfromi(2*(i-1)), p[i]);
+		}
+	}
 
 
 	//------------------------------------------------------------------------------
@@ -482,9 +492,9 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	std::cout << "Clean entries      = " << nEntriesClean << " (" << 100. * nEntriesClean / nEntries << "%)" << std::endl;
 	std::cout << "Accumulated NPOT   = " << npot                << std::endl;
 	std::cout << "dtmax              = " << dtmax << " samples" << std::endl;
-	std::cout << "ABCD prediction    = " << p << " +/- " << dp  << std::endl;
-	std::cout << "Expected nBG per evt per sample = " << p / nEntriesClean / trange / SampleToNs << " +/- " << dp / nEntriesClean / trange / SampleToNs << std::endl;
-	if ( !isbeamon ) std::cout << "Yields in region A = " << A[0] << std::endl;
+	std::cout << "ABCD prediction    = " << p[0] << " +/- " << dp[0]  << std::endl;
+	std::cout << "Expected nBG per evt per sample = " << p[0] / nEntriesClean / trange / SampleToNs << " +/- " << dp[0] / nEntriesClean / trange / SampleToNs << std::endl;
+	if ( ! isbeamon ) std::cout << "Yields in region A = " << A[0] << std::endl;
 
 
 
@@ -504,7 +514,8 @@ void bg_prediction(const bool isbeamon = false, const unsigned int region_mask =
 	c1 -> cd(5);
 	h1t1[0] -> Draw();
 	c1 -> cd(6);
-	if ( !isbeamon ) h2map[0] -> Draw("colztext");
+	if ( !isbeamon ) h2map[0]  -> Draw("colztext");
+	else             h2predmap -> Draw("colztext");
 
 
 
